@@ -34,14 +34,29 @@ public class IndexServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         EntityManager em = DBUtil.createEntityManager();
 
-        List<Message> tasks = em.createNamedQuery("getAllTasks", Message.class).getResultList();
-        response.getWriter().append(Integer.valueOf(tasks.size()).toString());
+     // 開くページ数を取得（デフォルトは1ページ目）
+        int page = 1;
+        try {
+            page = Integer.parseInt(request.getParameter("page"));
+        } catch(NumberFormatException e) {}
+
+        // 最大件数と開始位置を指定してメッセージを取得
+        List<Message> tasks = em.createNamedQuery("getAllTasks", Message.class)
+                                   .setFirstResult(15 * (page - 1))
+                                   .setMaxResults(15)
+                                   .getResultList();
+
+        // 全件数を取得
+        long messages_count = (long)em.createNamedQuery("getMessagesCount", Long.class)
+                                      .getSingleResult();
 
         em.close();
 
         request.setAttribute("tasks", tasks);
+        request.setAttribute("messages_count", messages_count);
+        request.setAttribute("page", page);
 
-        // フラッシュメッセージがセッションスコープにセットされていたら
+     // フラッシュメッセージがセッションスコープにセットされていたら
         if(request.getSession().getAttribute("flush") != null) {
             // セッションスコープ内のフラッシュメッセージをリクエストスコープに保存し、セッションスコープからは削除する
             request.setAttribute("flush", request.getSession().getAttribute("flush"));
@@ -50,5 +65,6 @@ public class IndexServlet extends HttpServlet {
 
         RequestDispatcher rd = request.getRequestDispatcher("/WEB-INF/views/messages/index.jsp");
         rd.forward(request, response);
+
     }
 }
